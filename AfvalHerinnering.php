@@ -1,5 +1,7 @@
 <?php
 
+$config = parse_ini_file('config.ini.php');
+
 function get_string_between($string, $start, $end)
 {
     $string = ' ' . $string;
@@ -91,14 +93,17 @@ class AfvalHerinnering
         return $this->token;
     }
 
-    function get_pickupdata($streetId, $houseNumber, $date)
+    function get_pickupdata($zipcodeId, $streetId, $houseNumber, $data)
     {
+        $fromDate = $data; // 2022-07-05 YYYY-mm-dd
+        $nextPickup = new DateTime($data); // Komende donderdag waarop het vuil wordt opgehaald 
+        $nextPickup = $nextPickup->modify('next thursday')->format('Y-m-d');
+        $untilDate = date('Y-m-d', strtotime($data . ' + 14 days')); // 2022-07-05 +2 dagen
 
 
         $curl = curl_init();
-
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://recycleapp.be/api/app/v1/collections?zipcodeId=2610-11002&streetId=' . $streetId . '&houseNumber=' . $houseNumber . '&fromDate=2022-07-05&untilDate=2022-07-19&size=100',
+            CURLOPT_URL => 'https://recycleapp.be/api/app/v1/collections?zipcodeId=' . $zipcodeId . '&streetId=' . $streetId . '&houseNumber=' . $houseNumber . '&fromDate=' . $fromDate . '&untilDate=' . $untilDate . '&size=100',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -118,20 +123,115 @@ class AfvalHerinnering
         $response = curl_exec($curl);
 
         curl_close($curl);
-        echo $response;
+        // echo $response;
 
-        $pickupdata = $response;
+        $pickupdata = json_decode($response, true);
+        // Template voor data volgende ophaling
+        $cleanedPickupdata = array(
+            "date" => $nextPickup, // Datum van ophaling
+            "afvaltype" => array(), // Array voor alle type afval (PMD, REST, ...)
+        );
 
-        return $pickupdata;
+        echo "\n--- Volgende ophaling ---";
+        // Door alle items in de data gaan
+        // Dit is data voor  weken, we willen enkel de volgende ophaling
+        foreach ($pickupdata['items'] as $key => $afvaltype) {
+            // Als het enkel de volgende ophaling betreft
+            if (date('Y-m-d', strtotime($afvaltype['timestamp'])) == $nextPickup) {
+                // Even weergeven in terminal
+                echo "\n" . $key . "\t";
+                echo $afvaltype['fraction']['name']['nl'];
+
+                // Naam van afvaltype toevoegen aan vooraf gemaakte template
+                $cleanedPickupdata["afvaltype"][] = $afvaltype['fraction']['name']['nl'];
+            }
+        }
+
+        return $cleanedPickupdata;
     }
     //   function get_name() {
     //     return $this->name;
     //   }
 }
 
+
+
+class SlackBediener
+{
+    function __construct($APItoken)
+    {
+        $this->APItoken = $APItoken;
+    }
+
+    function sendReminder($channelId, $pickupdata)
+    {
+        $afval = "";
+        foreach ($pickupdata["afvaltype"] as $key => $value) {
+            if ($key != 0) {
+                $afval .= ", ";
+            }
+            $afval .= $value;
+        }
+        $content = array(array(
+            'type' => 'section',
+            'text' => array(
+                'type' => 'mrkdwn',
+                'text' => 'Reminder: "Om rattenvoer te beperken wordt het vuil elke woensdag buitengezet door tak van dienst. Zij waren uiteraard al van plan om dit klusje vanavond te klaren! :wastebasket::rat:\nPS. *Het is deze week: ' . $afval . '*'
+            )
+        ));
+
+        var_dump($content);
+
+        var_dump(str_replace("\\n", "\n", json_encode($content)));
+        $curl = curl_init();
+        $params = array(
+            CURLOPT_URL => 'https://slack.com/api/chat.postMessage',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => 'channel=' . $channelId . '&blocks=' . urlencode(str_replace("\n", "\\n", json_encode($content))) . '&pretty=1',
+            CURLOPT_HTTPHEADER => array(
+                'Authorization: Bearer ' . $this->APItoken,
+                'Content-Type: application/x-www-form-urlencoded'
+            ),
+        );
+
+        var_dump($params);
+
+        curl_setopt_array($curl, $params);
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+        echo $response;
+    }
+}
+
 $app = new AfvalHerinnering();
-echo "hallo";
-echo $app->set_token();
+
+$app->set_token();
+
+$pickupdata = $app->get_pickupdata($config['zipcodeId'], $config['streetId'], $config['houseNumber'], date("Y-m-d"));
+
+var_dump($pickupdata);
+
+$slack = new SlackBediener($config['APItoken']);
+
+$slack->sendReminder($config['channelId'], $pickupdata);
+
+
+/*
+ TODO: Fix \\n in bericht
+ TODO: Bericht fallback tekst toevoegen (voor meldingen)
+ TODO: Emoticons afhankelijk van soort afval?
+*/
+
+
+
+
 
 // var_dump($app->token);
 

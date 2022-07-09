@@ -1,0 +1,9 @@
+;<?php die(); ?>
+
+[address-info]
+zipcodeId = ""
+streetId = "https://data.vlaanderen.be/id/xxx"
+houseNumber = ""
+[slack]
+APItoken = ""
+channelId = ""
