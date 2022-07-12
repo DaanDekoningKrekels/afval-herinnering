@@ -20,7 +20,7 @@ class AfvalHerinnering
     /**
      * Extraheert de secret uit de recycleapp broncode en vraagt een API-token aan
      *
-     * @return string: API-token
+     * @return string : API-token
      */
     function set_token()
     {
@@ -177,9 +177,9 @@ class SlackBediener
     /**
      *  Stuurt naar een specifiek kanaal (waar de bot toegang to heeft) een bericht met welk afval er die week kan worden verwacht.
      *
-     * @param string $channelId: Het ID van een Slack kanaal, einde van een URL 
-     * @param array $pickupdata: De array die je krijgt na een succesvolle aanvraag uit `AfvalHerinnering->get_pickupdata()`
-     * @return void: Informatie afhankelijk van de response van Slack
+     * @param string $channelId : Het ID van een Slack kanaal, einde van een URL 
+     * @param array $pickupdata : De array die je krijgt na een succesvolle aanvraag uit `AfvalHerinnering->get_pickupdata()`
+     * @return void : Informatie afhankelijk van de response van Slack
      */
     function sendReminder($channelId, $pickupdata)
     {
