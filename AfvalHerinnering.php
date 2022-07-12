@@ -1,25 +1,27 @@
 <?php
 
+/**
+ * @file AfvalHerinnering.php
+ * @author Daan Dekoning Krekels
+ * @date July 2022
+ * @brief Dit PHP script is een Slack 'bot' die medeleiding eraan herinnert om het vuil buiten te zetten op de scouts.
+ */
+
 $config = parse_ini_file('config.ini.php');
 
-function get_string_between($string, $start, $end)
-{
-    $string = ' ' . $string;
-    $ini = strpos($string, $start);
-    if ($ini == 0) return '';
-    $ini += strlen($start);
-    $len = strpos($string, $end, $ini) - $ini;
-    return substr($string, $ini, $len);
-}
-
+/**
+ * Deze klasse maakt het mogelijk een API-token aan te maken voor recycleapp.be en de ophaalkalender te raadplegen.
+ */
 class AfvalHerinnering
 {
-    // Properties
     public $token;
-    //   public $color;
     private $hostname = "https://recycleapp.be/";
 
-    // Methods
+    /**
+     * Extraheert de secret uit de recycleapp broncode en vraagt een API-token aan
+     *
+     * @return string: API-token
+     */
     function set_token()
     {
         $curl = curl_init();
@@ -42,10 +44,9 @@ class AfvalHerinnering
         // Extraheer de link naar het gewenste .js bestand (bv. static/js/main.55996be8.chunk.js)
         preg_match('/static\/js\/main\..*?\.chunk\.js/', $response, $match);
 
-        /*
-            We hebben het gewenste .js bestand
-            Nu secret achterhalen dat verstopt zit in het .js bestand
-        */
+        // We hebben het gewenste .js bestand
+        // Nu secret achterhalen dat verstopt zit in het .js bestand
+
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
@@ -95,6 +96,15 @@ class AfvalHerinnering
         return $this->token;
     }
 
+    /**
+     * Vraag de informatie op van de volgende afvalophaling.
+     *
+     * @param string $zipcodeId : Specifiek type postcode bv: 2610-11002
+     * @param string $streetId : Specifieke url gelinkt aan je straat https://data.vlaanderen.be/id/xxx
+     * @param int|string $houseNumber : Huisnummer
+     * @param date("T-m-d") $data : Datum uit een week waar we de volgende ophaling willen weten 
+     * @return array Array met datum van ophaling en de verschillende afvaltypes 
+     */
     function get_pickupdata($zipcodeId, $streetId, $houseNumber, $data)
     {
         $fromDate = $data; // 2022-07-05 YYYY-mm-dd
@@ -151,13 +161,12 @@ class AfvalHerinnering
 
         return $cleanedPickupdata;
     }
-    //   function get_name() {
-    //     return $this->name;
-    //   }
 }
 
 
-
+/**
+ * Deze klasse maakt het mogelijk om een bericht met de afvalinformatie te plaatsen in een slack kanaal
+ */
 class SlackBediener
 {
     function __construct($APItoken)
@@ -165,11 +174,15 @@ class SlackBediener
         $this->APItoken = $APItoken;
     }
 
+    /**
+     *  Stuurt naar een specifiek kanaal (waar de bot toegang to heeft) een bericht met welk afval er die week kan worden verwacht.
+     *
+     * @param string $channelId: Het ID van een Slack kanaal, einde van een URL 
+     * @param array $pickupdata: De array die je krijgt na een succesvolle aanvraag uit `AfvalHerinnering->get_pickupdata()`
+     * @return void: Informatie afhankelijk van de response van Slack
+     */
     function sendReminder($channelId, $pickupdata)
     {
-        /*
-        Stuurt naar een specifiek kanaal (waar de bot toegang to heeft) een bericht met welk afval er die week kan worden verwacht.
-        */
 
         $afval = "";
         foreach ($pickupdata["afvaltype"] as $key => $value) {
