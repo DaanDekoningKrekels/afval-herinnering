@@ -36,6 +36,7 @@ class AfvalHerinnering
         ));
 
         $response = curl_exec($curl);
+        // echo $response;
         curl_close($curl);
 
         // Extraheer de link naar het gewenste .js bestand (bv. static/js/main.55996be8.chunk.js)
@@ -59,10 +60,11 @@ class AfvalHerinnering
         ));
 
         $response = curl_exec($curl);
+        // echo $response;
         curl_close($curl);
 
         // Extraheer de secret om een token te kunnen aanvragen voor de API
-        preg_match('/var n\=\"(.*?)\",r\=\"\/api\/app\/v1\/assets\/\"/', $response, $match);
+        preg_match('/var n\=\"(.*?)\",r\=\"\/assets\/\"/', $response, $match);
 
         $curl = curl_init();
 
@@ -165,24 +167,40 @@ class SlackBediener
 
     function sendReminder($channelId, $pickupdata)
     {
+        /*
+        Stuurt naar een specifiek kanaal (waar de bot toegang to heeft) een bericht met welk afval er die week kan worden verwacht.
+        */
+
         $afval = "";
         foreach ($pickupdata["afvaltype"] as $key => $value) {
+            // Ieder type afval dat wordt meegegeven uit de databank wordt in een string gezet
+            // Hier kan eventueel nog een emoticon worden toegevoegd afhankelijk van het type afval.
             if ($key != 0) {
+                // Een komma behalve voor het eerste type afval
                 $afval .= ", ";
             }
             $afval .= $value;
         }
+
+        $specific_waste = "";
+        if ($afval != "") {
+            // Als de $afval variabele nog leeg is dan is er iets misgelopen en voegen we dit stukje niet toe
+            // Recycleapp.be kan zijn API op ieder moment aanpassen of niet meer laten werken...
+            $specific_waste = '\nPS. *Het is deze week: ' . $afval . '*.';
+        }
+
+        // Array in 'blocks' formaat voor Slack om berichten vorm te geven
         $content = array(array(
             'type' => 'section',
             'text' => array(
                 'type' => 'mrkdwn',
-                'text' => 'Reminder: "Om rattenvoer te beperken wordt het vuil elke woensdag buitengezet door tak van dienst. Zij waren uiteraard al van plan om dit klusje vanavond te klaren! :wastebasket::rat:\nPS. *Het is deze week: ' . $afval . '*'
+                'text' => 'Reminder: "Om rattenvoer te beperken wordt het vuil elke woensdag buitengezet door tak van dienst. Zij waren uiteraard al van plan om dit klusje vanavond te klaren! :wastebasket::rat:' . $specific_waste . '"'
             )
         ));
 
-        var_dump($content);
+        // var_dump($content);
 
-        var_dump(str_replace("\\n", "\n", json_encode($content)));
+        // Slack bericht plaatsen via een POST request
         $curl = curl_init();
         $params = array(
             CURLOPT_URL => 'https://slack.com/api/chat.postMessage',
@@ -193,51 +211,45 @@ class SlackBediener
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => 'channel=' . $channelId . '&blocks=' . urlencode(str_replace("\n", "\\n", json_encode($content))) . '&pretty=1',
+            CURLOPT_POSTFIELDS => 'channel=' . $channelId . '&blocks=' . urlencode(str_replace("\\n", "n", json_encode($content))) . '&text=' . urlencode(str_replace("\\n", "", $content[0]['text']['text'])) . '&pretty=1',
             CURLOPT_HTTPHEADER => array(
                 'Authorization: Bearer ' . $this->APItoken,
                 'Content-Type: application/x-www-form-urlencoded'
             ),
         );
-
-        var_dump($params);
-
         curl_setopt_array($curl, $params);
-        $response = curl_exec($curl);
+
+        $response = json_decode(curl_exec($curl), true);
+
 
         curl_close($curl);
-        echo $response;
+        if ($response["ok"] == true) {
+            echo "\nHet bericht is succesvol geplaatst!\n\t" . $response["message"]["text"];
+        } else {
+            echo "\nEr ging wat mis :(( \n";
+            var_dump($response);
+        }
     }
 }
 
-$app = new AfvalHerinnering();
 
-$app->set_token();
+$afval = new AfvalHerinnering();
 
-$pickupdata = $app->get_pickupdata($config['zipcodeId'], $config['streetId'], $config['houseNumber'], date("Y-m-d"));
+// Probeer een token te pakken te krijgen
+$afval->set_token();
 
-var_dump($pickupdata);
+// Verkrijg een array met de pickupdata voor deze week
+$pickupdata = $afval->get_pickupdata($config['zipcodeId'], $config['streetId'], $config['houseNumber'], date("Y-m-d"));
 
+// var_dump($pickupdata);
+
+// Initialiseer SlackBediener klasse, API token wordt opgeslagen
 $slack = new SlackBediener($config['APItoken']);
 
+// Verstuur het bericht naar het gewenste kanaal
 $slack->sendReminder($config['channelId'], $pickupdata);
 
 
 /*
- TODO: Fix \\n in bericht
- TODO: Bericht fallback tekst toevoegen (voor meldingen)
  TODO: Emoticons afhankelijk van soort afval?
 */
-
-
-
-
-
-// var_dump($app->token);
-
-// print(get_string_between($app->token, '<script src="', '.chunk.js"></script>'));
-// preg_match('/var n\=\"(.*?)\",r\=\"\/api\/app\/v1\/assets\/\/\"/', $app->token, $match);
-// echo $match[0];
-// if (preg_match('/var n\=\"(.*?)\",r\=\"\/api\/app\/v1\/assets\/\"/', $app->token, $match) == 1) {
-//     echo $match[1];
-// }
