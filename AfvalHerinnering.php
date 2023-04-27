@@ -65,7 +65,7 @@ class AfvalHerinnering
         curl_close($curl);
 
         // Extraheer de secret om een token te kunnen aanvragen voor de API
-        preg_match('/var n\=\"(.*?)\",r\=\"\/assets\/\"/', $response, $match);
+        preg_match('/var n\=\"(.*?)\",r\=\"\/app\/v1\/assets\/\"/', $response, $match);
 
         $curl = curl_init();
 
@@ -115,7 +115,7 @@ class AfvalHerinnering
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://recycleapp.be/api/app/v1/collections?zipcodeId=' . $zipcodeId . '&streetId=' . $streetId . '&houseNumber=' . $houseNumber . '&fromDate=' . $fromDate . '&untilDate=' . $untilDate . '&size=100',
+            CURLOPT_URL => 'https://api.fostplus.be/recyclecms/app/v1/collections?zipcodeId=' . $zipcodeId . '&streetId=' . $streetId . '&houseNumber=' . $houseNumber . '&fromDate=' . $fromDate . '&untilDate=' . $untilDate . '&size=100',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
