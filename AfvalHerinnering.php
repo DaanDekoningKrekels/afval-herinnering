@@ -46,6 +46,7 @@ class AfvalHerinnering
 
         // We hebben het gewenste .js bestand
         // Nu secret achterhalen dat verstopt zit in het .js bestand
+        echo print_r($match);
 
         $curl = curl_init();
 
@@ -65,8 +66,7 @@ class AfvalHerinnering
         curl_close($curl);
 
         // Extraheer de secret om een token te kunnen aanvragen voor de API
-        preg_match('/var n\=\"(.*?)\",r\=\"\/app\/v1\/assets\/\"/', $response, $match);
-
+        preg_match('/\(function\(\)\{return c\}\)\);var n\=\"(.*?)\",r\=\"/', $response, $match);
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
@@ -89,8 +89,12 @@ class AfvalHerinnering
         $token = json_decode($response, true)['accessToken'];
 
         curl_close($curl);
-        // echo $response;
-
+        // echo "\n";
+        // echo print_r($response);
+        // echo "\n";
+        // echo "\n";
+        // echo $token;
+        // echo "\n";
 
         $this->token = $token;
         return $this->token;
@@ -143,7 +147,7 @@ class AfvalHerinnering
             "date" => $nextPickup, // Datum van ophaling
             "afvaltype" => array(), // Array voor alle type afval (PMD, REST, ...)
         );
-
+        // echo print_r($pickupdata);
         echo "\n--- Volgende ophaling ---";
         // Door alle items in de data gaan
         // Dit is data voor  weken, we willen enkel de volgende ophaling
