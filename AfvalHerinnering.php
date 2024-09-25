@@ -10,96 +10,10 @@
 $config = parse_ini_file('config.ini.php');
 
 /**
- * Deze klasse maakt het mogelijk een API-token aan te maken voor recycleapp.be en de ophaalkalender te raadplegen.
+ * Deze klasse maakt het mogelijk om voor recycleapp.be de ophaalkalender te raadplegen.
  */
 class AfvalHerinnering
 {
-    public $token;
-    private $hostname = "https://recycleapp.be/";
-
-    /**
-     * Extraheert de secret uit de recycleapp broncode en vraagt een API-token aan
-     *
-     * @return string : API-token
-     */
-    function set_token()
-    {
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->hostname,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-        ));
-
-        $response = curl_exec($curl);
-        // echo $response;
-        curl_close($curl);
-
-        // Extraheer de link naar het gewenste .js bestand (bv. static/js/main.55996be8.chunk.js)
-        preg_match('/static\/js\/main\..*?\.chunk\.js/', $response, $match);
-
-        // We hebben het gewenste .js bestand
-        // Nu secret achterhalen dat verstopt zit in het .js bestand
-        echo print_r($match);
-
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->hostname . $match[0],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-        ));
-
-        $response = curl_exec($curl);
-        // echo $response;
-        curl_close($curl);
-
-        // Extraheer de secret om een token te kunnen aanvragen voor de API
-        preg_match('/\(function\(\)\{return c\}\)\);var n\=\"(.*?)\",r\=\"/', $response, $match);
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://recycleapp.be/api/app/v1/access-token',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'x-secret: ' . $match[1],
-                'x-consumer: recycleapp.be',
-                'Accept: application/json, text/plain, */*'
-            ),
-        ));
-
-        $response = curl_exec($curl);
-        $token = json_decode($response, true)['accessToken'];
-
-        curl_close($curl);
-        // echo "\n";
-        // echo print_r($response);
-        // echo "\n";
-        // echo "\n";
-        // echo $token;
-        // echo "\n";
-
-        $this->token = $token;
-        return $this->token;
-    }
-
     /**
      * Vraag de informatie op van de volgende afvalophaling.
      *
@@ -119,7 +33,7 @@ class AfvalHerinnering
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://api.fostplus.be/recyclecms/app/v1/collections?zipcodeId=' . $zipcodeId . '&streetId=' . $streetId . '&houseNumber=' . $houseNumber . '&fromDate=' . $fromDate . '&untilDate=' . $untilDate . '&size=100',
+            CURLOPT_URL => 'https://api.fostplus.be/recyclecms/public/v1/collections?zipcodeId=' . $zipcodeId . '&streetId=' . $streetId . '&houseNumber=' . $houseNumber . '&fromDate=' . $fromDate . '&untilDate=' . $untilDate . '&size=100',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -132,7 +46,6 @@ class AfvalHerinnering
                 'Accept:  application/json, text/plain, */*',
                 'Referer:  https://recycleapp.be/home',
                 'x-consumer:  recycleapp.be',
-                'Authorization: ' . $this->token
             ),
         ));
 
@@ -251,9 +164,6 @@ class SlackBediener
 
 
 $afval = new AfvalHerinnering();
-
-// Probeer een token te pakken te krijgen
-$afval->set_token();
 
 // Verkrijg een array met de pickupdata voor deze week
 $pickupdata = $afval->get_pickupdata($config['zipcodeId'], $config['streetId'], $config['houseNumber'], date("Y-m-d"));

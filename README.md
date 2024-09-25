@@ -10,23 +10,21 @@ Dit script maakt onderliggend gebruik van de RecycleApp.be als databron.
 
 ## Werking RecycleApp
 
-De RecycleApp is een website die enkel werkt met JavaScript draaiende. Daarom kan de informatie niet zomaar gescraped worden. De API van de RecycleApp maakt gebruik van autorisatie en geeft data terug in JSON formaat. Die autorisatie-token moet eerst gevonden worden in de broncode van de webpagina.
+De RecycleApp is een website die enkel werkt met JavaScript draaiende. Daarom kan de informatie niet zomaar gescraped worden. De API van de RecycleApp maakt geen gebruik meer van autorisatie en geeft data terug in JSON formaat. Die autorisatie-token moest eerst gevonden worden in de broncode van de webpagina. Dat is nu echterniet meer nodig.
 
-`Homepagina ophalen` -> `main.xxx.chunk.js vinden en ophalen` -> `secret extraheren` -> `accessToken aanvragen via API` -> `Ophaalkalender API aanspreken met verkregen accessToken`
+Voorheen: `Homepagina ophalen` -> `main.xxx.chunk.js vinden en ophalen` -> `secret extraheren` -> `accessToken aanvragen via API` -> `Ophaalkalender API aanspreken met verkregen accessToken`
 
-In de `set_token` functie van de `AfvalHerinnering` klasse wordt deze API-sleutel opgehaald.
+Nu: `Ophaalkalender API aanspreken met verkregen accessToken`
+
 
 ## Werking script
 
 In `config.ini.php` kunnen configuratieinstellingen opgeslagen worden.
 
-De `AfvalHerinnering` klasse heeft de functie `set_token` om een token aan te maken voor de RecycleApp API. De token wordt in de instantie opgeslagen. De functie `get_pickupdata` retourneert het afval van de volgende ophaling afkomstig van de API.
+De functie `get_pickupdata` retourneert het afval van de volgende ophaling afkomstig van de API.
 
 ```php
 $afval = new AfvalHerinnering();
-
-// Probeer een token te pakken te krijgen
-$afval->set_token();
 
 // Verkrijg een array met de pickupdata voor deze week
 $pickupdata = $afval->get_pickupdata($config['zipcodeId'], $config['streetId'], $config['houseNumber'], date("Y-m-d"));
@@ -41,3 +39,10 @@ $slack = new SlackBediener($config['APItoken']);
 // Verstuur het bericht naar het gewenste kanaal
 $slack->sendReminder($config['channelId'], $pickupdata);
 ```
+
+## Debuggen
+
+
+Gebruik PHP Debug in VSCode: `ext install php-debug`.
+
+Onder Linux: `sudo apt install php-xdebug php8.1-curl`.
