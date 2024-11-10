@@ -86,9 +86,10 @@ class AfvalHerinnering
  */
 class SlackBediener
 {
-    function __construct($APItoken)
+    function __construct($APItoken, $WebHook)
     {
         $this->APItoken = $APItoken;
+        $this->WebHook = $WebHook;
     }
 
     /**
@@ -124,7 +125,7 @@ class SlackBediener
             'type' => 'section',
             'text' => array(
                 'type' => 'mrkdwn',
-                'text' => 'Reminder: "Om rattenvoer te beperken wordt het vuil elke woensdag buitengezet door tak van dienst. Zij waren uiteraard al van plan om dit klusje vanavond te klaren! :wastebasket::rat:' . $specific_waste . '"'
+                'text' => 'Reminder: "Om rattenvoer te beperken wordt het vuil elke woensdag buitengezet door tak van dienst. Zij waren uiteraard al van plan om dit klusje vanavond te klaren! :wastebasket::rat: ' . $specific_waste . '"'
             )
         ));
 
@@ -159,6 +160,32 @@ class SlackBediener
             echo "\nEr ging wat mis :(( \n";
             var_dump($response);
         }
+
+        // Discrod bericht plaatsen via een POST request
+        $curl = curl_init();
+        $params = array(
+            CURLOPT_URL => $this->WebHook . "/slack",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => 'channel=' . $channelId . '&blocks=' . urlencode(str_replace("\\n", "n", json_encode($content))) . '&text=' . urlencode(str_replace("\\n", "", $content[0]['text']['text'])) . '&pretty=1',
+        );
+        curl_setopt_array($curl, $params);
+
+        $response = json_decode(curl_exec($curl), true);
+
+
+        curl_close($curl);
+        if ($response["ok"] == true) {
+            echo "\nHet bericht is succesvol geplaatst!\n\t" . $response["message"]["text"];
+        } else {
+            echo "\nEr ging wat mis :(( \n";
+            var_dump($response);
+        }
     }
 }
 
@@ -171,7 +198,7 @@ $pickupdata = $afval->get_pickupdata($config['zipcodeId'], $config['streetId'], 
 // var_dump($pickupdata);
 
 // Initialiseer SlackBediener klasse, API token wordt opgeslagen
-$slack = new SlackBediener($config['APItoken']);
+$slack = new SlackBediener($config['APItoken'], $config['WebHook']);
 
 // Verstuur het bericht naar het gewenste kanaal
 $slack->sendReminder($config['channelId'], $pickupdata);

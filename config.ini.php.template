@@ -7,3 +7,5 @@ houseNumber = ""
 [slack]
 APItoken = ""
 channelId = ""
+[discord]
+WebHook = ""
